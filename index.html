@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edebiyatın İzinde — Roman Kahramanını Bul</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --ink: #0a0a0a;
+      --paper: #f5f0e8;
+      --gold: #c9a84c;
+      --gold-light: #e8c87a;
+      --rust: #8b3a2f;
+      --muted: #6b6b6b;
+      --border: rgba(0,0,0,0.1);
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--ink);
+      color: var(--paper);
+      min-height: 100vh;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    /* Noise overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.4;
+    }
+
+    /* ── CURSOR ── */
+    #cursor {
+      position: fixed;
+      width: 12px;
+      height: 12px;
+      background: var(--gold);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s ease, height 0.3s ease, background 0.3s ease;
+      mix-blend-mode: difference;
+    }
+    #cursor-ring {
+      position: fixed;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(201,168,76,0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s ease, height 0.3s ease, border-color 0.3s ease;
+    }
+    body.cursor-hover #cursor {
+      width: 56px;
+      height: 56px;
+      background: rgba(201,168,76,0.15);
+    }
+    body.cursor-hover #cursor-ring {
+      width: 56px;
+      height: 56px;
+      border-color: var(--gold);
+    }
+
+    /* ── LOADING ── */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--ink);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loading-screen.hide {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .loading-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.5rem, 7vw, 5rem);
+      font-weight: 300;
+      color: var(--paper);
+      letter-spacing: 0.05em;
+      text-align: center;
+      line-height: 1.1;
+    }
+    .loading-title em { font-style: italic; color: var(--gold); }
+    .loading-bar-wrap {
+      width: 180px;
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .loading-bar {
+      height: 100%;
+      background: var(--gold);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .loading-count {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--gold);
+      letter-spacing: 0.25em;
+    }
+
+    /* ── APP LAYOUT ── */
+    #app {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 1.5rem 2.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.055);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .header-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(245,240,232,0.35);
+    }
+    .header-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .dot-indicator {
+      display: flex;
+      gap: 0.45rem;
+      align-items: center;
+    }
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      transition: all 0.4s ease;
+    }
+    .dot.active {
+      background: var(--gold);
+      transform: scale(1.4);
+    }
+    .dot.done {
+      background: rgba(201,168,76,0.35);
+    }
+    .header-progress {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.28em;
+      color: var(--gold);
+      opacity: 0.7;
+    }
+
+    /* ── QUIZ STAGE ── */
+    #quiz-stage {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr auto;
+      min-height: calc(100vh - 73px);
+    }
+
+    /* ── LEFT PANEL ── */
+    .left-panel {
+      grid-column: 1;
+      grid-row: 1 / 3;
+      padding: 3.5rem 3rem 3.5rem 3rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-right: 1px solid rgba(255,255,255,0.055);
+      position: relative;
+      overflow: hidden;
+    }
+    .left-panel::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1px;
+      height: 35%;
+      background: linear-gradient(to bottom, transparent, rgba(201,168,76,0.5), transparent);
+    }
+
+    /* Big watermark number */
+    .question-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(6rem, 12vw, 10rem);
+      font-weight: 700;
+      line-height: 0.8;
+      color: rgba(255,255,255,0.03);
+      position: absolute;
+      bottom: 2rem;
+      right: 2rem;
+      user-select: none;
+      pointer-events: none;
+      letter-spacing: -0.05em;
+    }
+
+    .question-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+    }
+    .meta-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--gold);
+      padding: 0.35rem 0.8rem;
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 100px;
+    }
+    .meta-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, rgba(201,168,76,0.2), transparent);
+    }
+
+    .question-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.25rem, 2.2vw, 1.85rem);
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.7;
+      color: var(--paper);
+      position: relative;
+      padding-left: 1.5rem;
+      border-left: 2px solid rgba(201,168,76,0.3);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .question-text::before {
+      content: '\201C';
+      font-size: 4rem;
+      line-height: 0;
+      vertical-align: -1.8rem;
+      color: rgba(201,168,76,0.4);
+      font-family: 'Cormorant Garamond', serif;
+      margin-right: 0.05em;
+    }
+    .question-text::after {
+      content: '\201D';
+      font-size: 4rem;
+      line-height: 0;
+      vertical-align: -1.8rem;
+      color: rgba(201,168,76,0.4);
+      font-family: 'Cormorant Garamond', serif;
+      margin-left: 0.05em;
+    }
+
+    /* Attempts */
+    .attempt-counter {
+      margin-top: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+    .attempt-pip {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.18);
+      transition: all 0.35s ease;
+    }
+    .attempt-pip.used {
+      background: var(--rust);
+      border-color: var(--rust);
+      box-shadow: 0 0 8px rgba(139,58,47,0.5);
+    }
+    .attempt-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-left: 0.3rem;
+    }
+
+    /* Feedback */
+    .feedback-box {
+      margin-top: 1.75rem;
+      padding: 1.1rem 1.4rem;
+      border-left: 2px solid var(--gold);
+      background: linear-gradient(to right, rgba(201,168,76,0.07), transparent);
+      border-radius: 0 6px 6px 0;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.5s cubic-bezier(0.4,0,0.2,1);
+      pointer-events: none;
+    }
+    .feedback-box.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .fb-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.45rem;
+    }
+    .fb-text {
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: rgba(245,240,232,0.65);
+      font-style: italic;
+    }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      grid-column: 2;
+      grid-row: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .img-option {
+      position: relative;
+      overflow: hidden;
+      cursor: none;
+      border: 1px solid rgba(255,255,255,0.035);
+      transition: border-color 0.3s ease;
+    }
+    .img-option::before {
+      content: attr(data-letter);
+      position: absolute;
+      top: 0.85rem;
+      left: 0.85rem;
+      z-index: 4;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.45);
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      padding: 0.28rem 0.55rem;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.07);
+      transition: all 0.3s ease;
+    }
+    .img-option::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.35) 100%);
+      transition: background 0.45s ease;
+      z-index: 2;
+    }
+    .img-option img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.7s cubic-bezier(0.4,0,0.2,1), filter 0.4s ease;
+      filter: saturate(0.65) brightness(0.8);
+    }
+    .img-option:hover img {
+      transform: scale(1.07);
+      filter: saturate(0.88) brightness(0.95);
+    }
+    .img-option:hover::after {
+      background: linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.25) 100%);
+    }
+    .img-option:hover::before {
+      color: var(--gold);
+      border-color: rgba(201,168,76,0.35);
+    }
+
+    /* States */
+    .img-option.correct { border-color: rgba(201,168,76,0.7) !important; }
+    .img-option.correct::after {
+      background: linear-gradient(135deg, rgba(201,168,76,0.12) 0%, rgba(0,0,0,0.05) 100%);
+    }
+    .img-option.correct img { filter: saturate(1.1) brightness(1); }
+
+    .img-option.wrong { border-color: rgba(139,58,47,0.5) !important; }
+    .img-option.wrong img { filter: saturate(0.2) brightness(0.5); }
+    .img-option.wrong::after { background: rgba(139,58,47,0.22); }
+    .img-option.disabled { pointer-events: none; }
+
+    /* Correct badge */
+    .correct-badge {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.5s ease 0.25s;
+    }
+    .img-option.correct .correct-badge { opacity: 1; }
+    .correct-badge-inner {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      color: var(--ink);
+      font-weight: 700;
+      animation: pulse-gold 2s ease infinite;
+    }
+    @keyframes pulse-gold {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.5); }
+      50% { box-shadow: 0 0 0 18px rgba(201,168,76,0); }
+    }
+
+    /* ── SCORE STRIP ── */
+    .score-strip {
+      grid-column: 2;
+      grid-row: 2;
+      padding: 0.9rem 1.5rem;
+      border-top: 1px solid rgba(255,255,255,0.055);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: rgba(255,255,255,0.015);
+      justify-content: flex-end;
+    }
+    .score-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.2em;
+      color: rgba(255,255,255,0.22);
+      text-transform: uppercase;
+    }
+    .score-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    /* ── PAGE WIPE ── */
+    .page-wipe {
+      position: fixed;
+      inset: 0;
+      background: var(--gold);
+      z-index: 1000;
+      transform: scaleX(0);
+      transform-origin: left;
+      pointer-events: none;
+    }
+
+    /* ── SUCCESS OVERLAY ── */
+    #success-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    #success-overlay.visible { display: flex; }
+
+    .success-card {
+      max-width: 600px;
+      width: 100%;
+      position: relative;
+      animation: fadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .corner {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      z-index: 10;
+    }
+    .corner-tl { top: -1px; left: -1px; border-top: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+    .corner-tr { top: -1px; right: -1px; border-top: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+    .corner-bl { bottom: -1px; left: -1px; border-bottom: 1px solid var(--gold); border-left: 1px solid var(--gold); }
+    .corner-br { bottom: -1px; right: -1px; border-bottom: 1px solid var(--gold); border-right: 1px solid var(--gold); }
+
+    .success-card-inner {
+      background: #0f0f0f;
+      border: 1px solid rgba(201,168,76,0.15);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .success-top {
+      padding: 3rem 3rem 2.25rem;
+      border-bottom: 1px solid rgba(201,168,76,0.1);
+      background: linear-gradient(135deg, rgba(201,168,76,0.06) 0%, transparent 60%);
+    }
+    .success-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .success-label::before, .success-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(201,168,76,0.18);
+    }
+    .success-text {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.35rem, 2.5vw, 1.95rem);
+      font-weight: 400;
+      color: var(--paper);
+      line-height: 1.5;
+      font-style: italic;
+    }
+    .success-bottom {
+      padding: 1.75rem 3rem 2.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+    .success-score-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .success-score-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.75rem;
+      font-weight: 600;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .success-score-label {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .next-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: var(--gold);
+      color: var(--ink);
+      border: none;
+      padding: 0.9rem 1.75rem;
+      border-radius: 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      cursor: none;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+    .next-btn:hover {
+      background: var(--gold-light);
+      transform: translateX(3px);
+    }
+    .next-btn .arrow { transition: transform 0.3s ease; }
+    .next-btn:hover .arrow { transform: translateX(5px); }
+
+    /* ── FINAL SCREEN ── */
+    #final-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 600;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--ink);
+      text-align: center;
+      padding: 2rem;
+    }
+    #final-screen.visible { display: flex; }
+    .final-eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 1.75rem;
+    }
+    .final-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3.5rem, 10vw, 8rem);
+      font-weight: 300;
+      font-style: italic;
+      color: var(--paper);
+      line-height: 0.9;
+      margin-bottom: 1.5rem;
+    }
+    .final-subtitle {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.35);
+      max-width: 360px;
+      line-height: 1.65;
+      margin-bottom: 2.5rem;
+    }
+    .final-score-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .final-score-big {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(5rem, 15vw, 11rem);
+      font-weight: 600;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .final-score-denom {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 5vw, 4rem);
+      color: rgba(255,255,255,0.18);
+    }
+    .final-desc {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-style: italic;
+      color: rgba(255,255,255,0.45);
+      max-width: 440px;
+      line-height: 1.6;
+      margin-bottom: 3rem;
+    }
+    .restart-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      border: 1px solid rgba(201,168,76,0.35);
+      color: var(--gold);
+      background: transparent;
+      padding: 0.9rem 2.25rem;
+      border-radius: 2px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: none;
+      transition: all 0.4s ease;
+    }
+    .restart-btn:hover {
+      background: var(--gold);
+      color: var(--ink);
+      border-color: var(--gold);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      body { cursor: auto; }
+      #cursor, #cursor-ring { display: none; }
+      header { padding: 1.1rem 1.25rem; }
+      .header-brand { font-size: 0.7rem; letter-spacing: 0.1em; }
+      #quiz-stage {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        min-height: unset;
+      }
+      .left-panel {
+        grid-column: 1;
+        grid-row: 2;
+        border-right: none;
+        border-top: 1px solid rgba(255,255,255,0.055);
+        padding: 2rem 1.5rem;
+      }
+      .left-panel::after { display: none; }
+      .question-number { display: none; }
+      .right-panel {
+        grid-column: 1;
+        grid-row: 1;
+        min-height: 55vw;
+      }
+      .score-strip { grid-column: 1; grid-row: 3; justify-content: center; }
+      .success-top { padding: 1.75rem 1.75rem 1.5rem; }
+      .success-label::before, .success-label::after { display: none; }
+      .success-bottom { padding: 1.25rem 1.75rem 1.75rem; flex-direction: column; align-items: stretch; }
+      .next-btn { justify-content: center; }
+      .left-panel .attempt-counter { display: none; }
+    }
+    @media (max-width: 480px) {
+      .right-panel { min-height: 80vw; }
+      .question-text { font-size: 1.1rem; }
+      .meta-tag { font-size: 0.52rem; }
+      header { flex-direction: column; gap: 0.75rem; }
+      .header-center { position: static; transform: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Custom Cursor -->
+  <div id="cursor"></div>
+  <div id="cursor-ring"></div>
+
+  <!-- Page Wipe -->
+  <div class="page-wipe"></div>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <p class="loading-title">Edebiyatın<br><em>İzinde</em></p>
+    <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
+    <span class="loading-count">0%</span>
+  </div>
+
+  <!-- App -->
+  <div id="app">
+    <header>
+      <span class="header-brand">Roman Kahramanını Bul</span>
+      <div class="header-center">
+        <div class="dot-indicator" id="dot-indicator">
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+      <span class="header-progress" id="progress-text">01 / 07</span>
+    </header>
+
+    <div id="quiz-stage">
+      <div class="left-panel">
+        <div class="question-number" id="q-number">01</div>
+        <div class="question-meta">
+          <span class="meta-tag" id="q-book">—</span>
+          <span class="meta-tag" id="q-year">—</span>
+          <div class="meta-line"></div>
+        </div>
+        <p id="question-text" class="question-text"></p>
+        <div class="attempt-counter">
+          <div class="attempt-pip" id="pip-1"></div>
+          <div class="attempt-pip" id="pip-2"></div>
+          <div class="attempt-pip" id="pip-3"></div>
+          <span class="attempt-label">yanlış seçim</span>
+        </div>
+        <div class="feedback-box" id="feedback-box">
+          <div class="fb-label">İpucu</div>
+          <p class="fb-text" id="feedback-text"></p>
+        </div>
+      </div>
+
+      <div class="right-panel" id="image-grid"></div>
+
+      <div class="score-strip">
+        <span class="score-label">Puan</span>
+        <span class="score-value" id="score-val">0</span>
+        <span class="score-label">/ 21 maks.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Overlay -->
+  <div id="success-overlay">
+    <div class="success-card">
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="success-card-inner">
+        <div class="success-top">
+          <div class="success-label">Doğru Karakter</div>
+          <p class="success-text" id="success-info"></p>
+        </div>
+        <div class="success-bottom">
+          <div class="success-score-block">
+            <span class="success-score-num" id="success-pts">+3</span>
+            <span class="success-score-label" id="success-attempts">İlk denemede!</span>
+          </div>
+          <button class="next-btn" id="next-btn">
+            Sonraki Karakter <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Final Screen -->
+  <div id="final-screen">
+    <p class="final-eyebrow">Yolculuk Tamamlandı</p>
+    <h1 class="final-title">Yaşar<br>Kemal</h1>
+    <p class="final-subtitle">Edebiyatın izindeki yolculuğun bitti. İşte sonucun:</p>
+    <div class="final-score-row">
+      <span class="final-score-big" id="final-score">0</span>
+      <span class="final-score-denom">/ 21</span>
+    </div>
+    <p class="final-desc" id="final-desc"></p>
+    <button class="restart-btn" id="restart-btn">↺ &nbsp;Yeniden Başla</button>
+  </div>
+
+  <script>
+    /* ─── DATA ─── */
+    const DATA = [
+      {
+        question: "Boynu ince, bilekleri ince, bacakları ince... Gözleri kocamandı, pırıl pırıldı. Yüzü sarımtıraktı. Bir deri bir kemik kalmıştı çocuk. Memed, köyün içinde süzüm süzüm süzülüyordu. Memed’in içindeki isyan, toprağın derinliklerinden gelen bir su gibi kaynıyordu.",
+        book: "İnce Memed", year: "1955",
+        options: [
+          { id:'a', img:'images/ince_memed_wrong_eyes.jpg',  isCorrect:false, feedback:"Gözler sönük; metindeki o 'pırıl pırıl' parıltı burada yok." },
+          { id:'b', img:'images/ince_memed_original.jpg',    isCorrect:true,  feedback:"" },
+          { id:'c', img:'images/ince_memed_wrong_build.jpg', isCorrect:false, feedback:"Karakter fazla yapılı; 'bir deri bir kemik' vurgusuna uymuyor." },
+          { id:'d', img:'images/ince_memed_wrong_neck.jpg',  isCorrect:false, feedback:"Bu karakterin boynu ve bilekleri metne göre fazla kalın." }
+        ],
+        info: "İnce Memed: Abdi Ağa’nın zulmüne karşı Çukurova’da başkaldıran, feodal düzene karşı köylünün sesi olan efsanevi kahraman. Fiziksel zayıflığının aksine, içindeki adalet duygusuyla devleşen, haksızlığa karşı 'mecburiyetin' simgesidir."
+      },
+      {
+        question: "Koca Meryemce, yerin altından gelen bir ses gibi homurdanıyordu. Belini doğrultamıyordu ama başı her zaman göğe bakardı. Yüzü, asırlık bir çınarın kabuğu gibi yarık yarıktı. Gözleri, içinde bin yıllık bir öfkeyi ve bin yıllık bir sabrı taşıyan iki kor parçasıydı.",
+        book: "Ortadirek", year: "1960",
+        options: [
+          { id:'a', img:'images/meryemce_wrong_posture_straight.jpg', isCorrect:false, feedback:"Bu kadın fazla dik duruyor; bükülmüş bir bel göremiyoruz." },
+          { id:'b', img:'images/meryemce_wrong_face_type.jpg',        isCorrect:false, feedback:"Yüz hatları çok yumuşak; 'çınar kabuğu' gibi sert doku burada yok." },
+          { id:'c', img:'images/meryemce_wrong_posture.jpg',          isCorrect:false, feedback:"Pek de göğe bakan ve bükük beli yok." },
+          { id:'d', img:'images/meryemce_original.jpg.png',           isCorrect:true,  feedback:"" }
+        ],
+        info: "Koca Meryemce: 'Dağın Öte Yüzü' üçlemesinin en güçlü figürü. Anadolu kadınının doğaya, yokluğa ve kadere karşı bitmek bilmeyen inadını, kadim sabrını ve toprağa kök salmış sarsılmaz iradesini temsil eder."
+      },
+      {
+        question: "Uzun Ali, bir heykel gibi kaskatı kesilmişti. Göğsü körük gibi inip kalkıyor, ter damlaları alnından toprağa birer mermi gibi düşüyordu. Köylünün gözünde o, hem bir kurtarıcı hem de bir kurban gibiydi. Omuzları dünyayı taşıyacak kadar geniş, elleri toprağı yoğuracak kadar kaba ve güçlüydü.",
+        book: "Yer Demir Gök Bakır", year: "1963",
+        options: [
+          { id:'a', img:'images/uzun_ali_wrong_shoulders.jpg', isCorrect:false, feedback:"Bu omuzlar dünyayı taşıyacak o devasa genişlikte değil." },
+          { id:'b', img:'images/uzun_ali_wrong_hands.jpg',     isCorrect:false, feedback:"Fazla narin; toprağı yoğuran o kaba eller bunlar olamaz." },
+          { id:'c', img:'images/uzun_ali_original.jpg',        isCorrect:true,  feedback:"" },
+          { id:'d', img:'images/uzun_ali_wrong_tension.jpg',   isCorrect:false, feedback:"Metindeki kaskatı gerginliği bu görselde hissedemiyoruz." }
+        ],
+        info: "Uzun Ali: Yalak köylülerinin çaresizlik içinde sığındığı, fiziksel gücüyle toprağı, ruhsal gücüyle umudu ayakta tutan figür. Mitler ve gerçeklik arasında sıkışmış bir toplumun sessiz ve vakur 'orta direği'dir."
+      },
+      {
+        question: "Çakırcalı’nın boyu posu yerinde, omuzları geniş, beli inceydi. Yüzü, bir kartalın yüzü gibi keskindi. Bakışları insanın içine işler, sanki ruhunu okurdu. Dağların efendisiydi o; yürüdüğünde yer sarsılır, durduğunda zaman dururdu.",
+        book: "Çakırcalı Efe", year: "1962",
+        options: [
+          { id:'a', img:'images/cakircali_wrong_waist.jpg', isCorrect:false, feedback:"Omuzlar geniş ama 'ince bel' detayı burada yok." },
+          { id:'b', img:'images/cakircali_wrong_face.jpg',  isCorrect:false, feedback:"Yüz hatları yumuşak; 'kartal gibi keskin' çehreyi bulamıyoruz." },
+          { id:'c', img:'images/cakircali_wrong_gaze.jpg',  isCorrect:false, feedback:"Bakışlar donuk; ruhuna işleyen o delici efe bakışı bu değil." },
+          { id:'d', img:'images/cakircali_original.jpg',    isCorrect:true,  feedback:"" }
+        ],
+        info: "Çakırcalı Efe: Ege dağlarının hükümdarı, 'Efelerin Efesi'. Gerçek bir halk kahramanından destanlaştırılan; adaleti kendi kılıcıyla sağlayan, aristokrat duruşu ve kartal bakışlarıyla nam salmış bir otorite simgesidir."
+      },
+      {
+        question: "Hasan’ın annesi Esme’nin güzelliği, köylülerin dilinde bir efsaneydi ama Tostos’un (Hasan) omuzlarındaki yük, bir devin taşıyamayacağı kadar ağırdı. Çocuğun gözlerinde, babasının kanı ve annesinin güzelliği arasında sıkışmış bir dehşet vardı. Küçük gövdesi, toplumun töresi altında her gün biraz daha eziliyordu.",
+        book: "Yılanı Öldürseler", year: "1976",
+        options: [
+          { id:'a', img:'images/tostos_wrong_build.jpg', isCorrect:false, feedback:"Bu çocuk çok güçlü duruyor; 'ezilmiş' ruhu yansıtmıyor." },
+          { id:'b', img:'images/tostos_wrong_gaze.jpg',  isCorrect:false, feedback:"Bakışlar sakin; gözlerindeki dehşet ve sıkışmışlık yok." },
+          { id:'c', img:'images/tostos_original.jpg',    isCorrect:true,  feedback:"" },
+          { id:'d', img:'images/tostos_wrong_era.jpg',   isCorrect:false, feedback:"Kıyafetler ve ortam 1970'lerin Çukurova'sı için çok modern." }
+        ],
+        info: "Hasan (Tostos): Katı töre kurallarının ve toplumsal baskının kurbanı olan çocukluk. Annesine duyduğu sevgi ile köyün ondan beklediği 'intikam' arasına sıkışmış, masumiyetin karanlık bir gelenekle yok edilişinin trajik sembolüdür."
+      },
+      {
+        question: "Selim’in derisi güneşten ve tuzdan kavrulmuş, meşin gibi sertleşmişti. Elleri ağ çekmekten nasır tutmuş, parmakları kanca gibi olmuştu. Gözleri denizin maviliğini çalmış gibi bakıyordu. Selim, denizin ta kendisiydi; hırçın, derin ve bazen çok sessiz.",
+        book: "Deniz Küstü", year: "1978",
+        options: [
+          { id:'a', img:'images/selim_wrong_luxury.jpg',     isCorrect:false, feedback:"Bu adam bir yat sahibi gibi; 'kavrulmuş' deri dokusu yok." },
+          { id:'b', img:'images/selim_wrong_desert.jpg',     isCorrect:false, feedback:"Deri kavrulmuş ama bu bir çöl adamı; 'deniz mavisi' gözler yok." },
+          { id:'c', img:'images/selim_original.jpg',         isCorrect:true,  feedback:"" },
+          { id:'d', img:'images/selim_wrong_industrial.jpg', isCorrect:false, feedback:"Bu adam denizci değil, fabrikada çalışan bir usta gibi duruyor." }
+        ],
+        info: "Selim Balıkçı: Kirlenen Marmara ve betonlaşan İstanbul’un kıyısında kalmış bir münzevi. Yaşar Kemal’in ekolojik duyarlılığını yansıtan; doğanın katledilmesine duyulan öfkenin ve denize olan tutkulu bağlılığın ete kemiğe bürünmüş halidir."
+      },
+      {
+        question: "Poyraz Musa, savaşın yorgunluğunu sırtında bir ur gibi taşıyordu. Gözlerinde, cephelerde bıraktığı arkadaşlarının hayali vardı. Yakışıklıydı ama bu yakışıklılık hüzünle gölgelenmişti. Adım attığı toprakta bir yabancı, baktığı denizde bir sürgündü.",
+        book: "Bir Ada Hikayesi", year: "2003",
+        options: [
+          { id:'a', img:'images/poyraz_original.jpg',      isCorrect:true,  feedback:"" },
+          { id:'b', img:'images/poyraz_wrong_model.jpg',   isCorrect:false, feedback:"Bu adam gayet neşeli; savaşın yorgunluğu ve hüznü yüzünde yok." },
+          { id:'c', img:'images/poyraz_wrong_dance.jpg',   isCorrect:false, feedback:"Fazla neşeli; 'yorgunluk' ve 'sürgün' hissi kayıp." },
+          { id:'d', img:'images/poyraz_wrong_statue.jpg',  isCorrect:false, feedback:"Bu bir asker ama hüzünlü bir sürgün değil; gururlu ve zafer kazanmış biri." }
+        ],
+        info: "Poyraz Musa: Savaşların yıkımından sağ çıkmış, mübadele döneminde ıssız bir adaya sığınan 'yorgun' bir asker. Geçmişin kanlı anılarını denize gömmeye çalışan, barışın ve yeni bir yurt arayışının hüzünlü temsilcisidir."
+      }
+    ];
+
+    /* ─── STATE ─── */
+    let state = { index:0, score:0, attempts:0, wrongIds:new Set(), answered:false };
+
+    /* ─── CURSOR ─── */
+    const $cursor = document.getElementById('cursor');
+    const $ring   = document.getElementById('cursor-ring');
+    let cx=0, cy=0, rx=0, ry=0;
+
+    document.addEventListener('mousemove', e => {
+      cx = e.clientX; cy = e.clientY;
+      $cursor.style.left = cx+'px';
+      $cursor.style.top  = cy+'px';
+    });
+    (function animRing(){
+      rx += (cx-rx)*0.12; ry += (cy-ry)*0.12;
+      $ring.style.left = rx+'px'; $ring.style.top = ry+'px';
+      requestAnimationFrame(animRing);
+    })();
+    document.addEventListener('mouseover', e => {
+      document.body.classList.toggle('cursor-hover',
+        !!e.target.closest('button, .img-option'));
+    });
+
+    /* ─── LOADING ─── */
+    window.addEventListener('load', () => {
+      const bar = document.querySelector('.loading-bar');
+      const cnt = document.querySelector('.loading-count');
+      let pct = 0;
+      const iv = setInterval(() => {
+        pct += Math.random()*18 + 4;
+        if (pct >= 100) { pct = 100; clearInterval(iv); }
+        bar.style.width = pct + '%';
+        cnt.textContent = Math.floor(pct) + '%';
+        if (pct === 100) setTimeout(() => {
+          document.getElementById('loading-screen').classList.add('hide');
+          render();
+        }, 350);
+      }, 100);
+    });
+
+    /* ─── RENDER ─── */
+    function render() {
+      const q = DATA[state.index];
+      const shuffled = [...q.options].sort(() => Math.random()-0.5);
+      const letters = ['A','B','C','D'];
+
+      /* dots */
+      document.querySelectorAll('.dot').forEach((dot,i) => {
+        dot.classList.remove('active','done');
+        if (i < state.index) dot.classList.add('done');
+        else if (i === state.index) dot.classList.add('active');
+      });
+
+      document.getElementById('progress-text').textContent =
+        String(state.index+1).padStart(2,'0') + ' / ' +
+        String(DATA.length).padStart(2,'0');
+      document.getElementById('q-number').textContent =
+        String(state.index+1).padStart(2,'0');
+      document.getElementById('q-book').textContent = q.book;
+      document.getElementById('q-year').textContent = q.year;
+
+      /* question text fade */
+      const qtEl = document.getElementById('question-text');
+      qtEl.style.cssText = 'opacity:0;transform:translateY(14px);';
+      setTimeout(() => {
+        qtEl.textContent = q.question;
+        qtEl.style.cssText = 'transition:opacity .55s ease,transform .55s ease;opacity:1;transform:translateY(0);';
+      }, 60);
+
+      /* reset */
+      document.getElementById('feedback-box').classList.remove('show');
+      document.getElementById('feedback-text').textContent = '';
+      state.attempts = 0;
+      state.wrongIds.clear();
+      state.answered = false;
+      updatePips();
+      document.getElementById('score-val').textContent = state.score;
+
+      /* images */
+      const grid = document.getElementById('image-grid');
+      grid.innerHTML = '';
+      shuffled.forEach((opt, i) => {
+        const el = document.createElement('div');
+        el.className = 'img-option';
+        el.setAttribute('data-letter', letters[i]);
+
+        const img = document.createElement('img');
+        img.src = opt.img;
+        img.alt = 'Seçenek ' + letters[i];
+        img.onerror = function(){ this.src='https://placehold.co/400x400/111111/c9a84c?text='+letters[i]; };
+
+        const badge = document.createElement('div');
+        badge.className = 'correct-badge';
+        badge.innerHTML = '<div class="correct-badge-inner">✓</div>';
+
+        el.appendChild(img);
+        el.appendChild(badge);
+        el.addEventListener('click', () => handleAnswer(opt, el));
+        grid.appendChild(el);
+      });
+    }
+
+    /* ─── ANSWER ─── */
+    function handleAnswer(opt, el) {
+      if (state.answered || state.wrongIds.has(opt.id)) return;
+
+      if (opt.isCorrect) {
+        state.answered = true;
+        el.classList.add('correct');
+        document.querySelectorAll('.img-option').forEach(item => {
+          item.classList.add('disabled');
+          if (!item.classList.contains('correct')) item.classList.add('wrong');
+        });
+        const pts = Math.max(0, 3 - state.attempts);
+        state.score += pts;
+        document.getElementById('score-val').textContent = state.score;
+        setTimeout(showSuccess, 650);
+      } else {
+        state.attempts++;
+        state.wrongIds.add(opt.id);
+        el.classList.add('wrong','disabled');
+        el.animate([
+          {transform:'translateX(0)'},{transform:'translateX(-9px)'},
+          {transform:'translateX(9px)'},{transform:'translateX(-5px)'},
+          {transform:'translateX(5px)'},{transform:'translateX(0)'}
+        ], {duration:380, easing:'ease-out'});
+        document.getElementById('feedback-text').textContent = opt.feedback;
+        document.getElementById('feedback-box').classList.add('show');
+        updatePips();
+      }
+    }
+
+    function updatePips() {
+      ['pip-1','pip-2','pip-3'].forEach((id,i) => {
+        document.getElementById(id).classList.toggle('used', i < state.attempts);
+      });
+    }
+
+    /* ─── SUCCESS ─── */
+    function showSuccess() {
+      const q = DATA[state.index];
+      document.getElementById('success-info').textContent = q.info;
+      const pts = Math.max(0, 3 - state.attempts);
+      const labels = ['İlk denemede!', '2. denemede', '3. denemede', 'Zorlandın...'];
+      document.getElementById('success-pts').textContent = '+' + pts + ' puan';
+      document.getElementById('success-attempts').textContent = labels[Math.min(state.attempts, 3)];
+      document.getElementById('success-overlay').classList.add('visible');
+    }
+
+    /* ─── NEXT ─── */
+    function nextStep() {
+      document.getElementById('success-overlay').classList.remove('visible');
+
+      if (state.index < DATA.length - 1) {
+        state.index++;
+        const wipe = document.querySelector('.page-wipe');
+        wipe.animate([
+          {transform:'scaleX(0)',transformOrigin:'left'},
+          {transform:'scaleX(1)',transformOrigin:'left'}
+        ], {duration:360, easing:'cubic-bezier(.4,0,.2,1)'}).onfinish = () => {
+          render();
+          wipe.animate([
+            {transform:'scaleX(1)',transformOrigin:'right'},
+            {transform:'scaleX(0)',transformOrigin:'right'}
+          ], {duration:360, easing:'cubic-bezier(.4,0,.2,1)'});
+        };
+      } else {
+        showFinal();
+      }
+    }
+
+    /* ─── FINAL ─── */
+    function showFinal() {
+      document.getElementById('final-score').textContent = state.score;
+      const pct = Math.round((state.score / (DATA.length * 3)) * 100);
+      const descs = [
+        [90, "Yaşar Kemal'i ruhunla tanıyorsun. Edebiyatın gerçek mirasçısısın."],
+        [70, "Çukurova'nın ozanına hayranlığın bu satırlarda okunuyor."],
+        [50, "İyi bir başlangıç. Eserlerin sayfaları seni bekliyor."],
+        [0,  "Yaşar Kemal'in dünyasına adım atmaya yeni başlıyorsun."]
+      ];
+      document.getElementById('final-desc').textContent =
+        descs.find(([min]) => pct >= min)[1];
+      document.getElementById('final-screen').classList.add('visible');
+    }
+
+    function restart() {
+      state = { index:0, score:0, attempts:0, wrongIds:new Set(), answered:false };
+      document.getElementById('final-screen').classList.remove('visible');
+      render();
+    }
+
+    /* ─── BUTTON LISTENERS ─── */
+    document.getElementById('next-btn').addEventListener('click', nextStep);
+    document.getElementById('restart-btn').addEventListener('click', restart);
+  </script>
+</body>
+</html>
